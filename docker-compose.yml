@@ -1,0 +1,81 @@
+version: '3.7'
+
+services:
+  apm-example:
+    hostname: apm-example
+    restart: on-failure
+    build:
+      context: .
+      dockerfile: ./Dockerfile
+    volumes:
+      - .:/app
+    env_file:
+      - .env
+    ports:
+      - "3000:3000"
+    command: npm run start:dev
+    depends_on:
+      - apm-server
+    cpus: 1
+    mem_limit: 1024M
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:7.12.1
+    container_name: elasticsearch
+    environment:
+      - discovery.type=single-node
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+    volumes:
+      - es-data:/usr/share/elasticsearch/data
+    ports:
+      - 9200:9200
+    healthcheck:
+      interval: 30s
+      retries: 10
+      test: curl -s http://localhost:9200/_cluster/health | grep -vq '"status":"red"'
+  kibana:
+    image: docker.elastic.co/kibana/kibana:7.12.1
+    container_name: kibana
+    ports:
+      - 5601:5601
+    environment:
+      ELASTICSEARCH_URL: http://elasticsearch:9200
+    cpus: 0.1
+    mem_limit: 256M 
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+    healthcheck:
+      interval: 40s
+      retries: 20
+      test: curl --write-out 'HTTP %{http_code}' --fail --silent --output /dev/null http://localhost:5601/api/status
+  apm-server:
+    image: docker.elastic.co/apm/apm-server:7.17.16
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+      kibana:
+        condition: service_healthy
+    cap_add: ["CHOWN", "DAC_OVERRIDE", "SETGID", "SETUID"]
+    cap_drop: ["ALL"]
+    ports:
+    - 8200:8200
+    command: >
+       apm-server -e
+         -E apm-server.rum.enabled=true
+         -E setup.kibana.host=kibana:5601
+         -E setup.template.settings.index.number_of_replicas=0
+         -E apm-server.kibana.enabled=true
+         -E apm-server.kibana.host=kibana:5601
+         -E output.elasticsearch.hosts=["elasticsearch:9200"]
+    healthcheck:
+      interval: 10s
+      retries: 12
+      test: curl --write-out 'HTTP %{http_code}' --fail --silent --output /dev/null http://localhost:8200/
+    cpus: 0.1
+    mem_limit: 256M 
+volumes:
+  es-data:
