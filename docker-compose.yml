@@ -16,8 +16,9 @@ services:
     command: npm run start:dev
     depends_on:
       - apm-server
-    cpus: 1
-    mem_limit: 1024M
+      - postgres
+    cpus: 0.5
+    mem_limit: 512M
   elasticsearch:
     image: docker.elastic.co/elasticsearch/elasticsearch:7.12.1
     container_name: elasticsearch
@@ -44,7 +45,7 @@ services:
     environment:
       ELASTICSEARCH_URL: http://elasticsearch:9200
     cpus: 0.1
-    mem_limit: 256M 
+    mem_limit: 512M 
     depends_on:
       elasticsearch:
         condition: service_healthy
@@ -77,5 +78,19 @@ services:
       test: curl --write-out 'HTTP %{http_code}' --fail --silent --output /dev/null http://localhost:8200/
     cpus: 0.1
     mem_limit: 256M 
+  postgres:
+    image: postgres:alpine
+    ports:
+      - 5432:5432
+    container_name: postgres
+    volumes:
+      - pg-data:/var/lib/postgresql/data
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    restart: always
+    cpus: 0.5
+    mem_limit: 512M
 volumes:
   es-data:
+  pg-data:
