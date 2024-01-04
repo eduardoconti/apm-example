@@ -14,8 +14,8 @@ export const getTypeOrmModuleOptions = (
     password: config.getOrThrow('DB_PASSWORD'),
     database: config.getOrThrow('DB_NAME'),
     entities: [UserModel],
-    synchronize: config.getOrThrow('DB_SYNCHRONIZE'),
-    logging: config.getOrThrow('DB_LOGGING'),
+    synchronize: Boolean(config.getOrThrow('DB_SYNCHRONIZE')),
+    logging: Boolean(config.getOrThrow('DB_LOGGING')),
   } as TypeOrmModuleOptions);
 
 @Global()
